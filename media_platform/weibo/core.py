@@ -36,6 +36,7 @@ from .exception import DataFetchError
 from .field import SearchType
 from .help import filter_search_result_card
 from .login import WeiboLogin
+from pathlib import Path
 
 
 class WeiboCrawler(AbstractCrawler):
@@ -140,21 +141,89 @@ class WeiboCrawler(AbstractCrawler):
                 page += 1
                 await self.batch_get_notes_comments(note_id_list)
 
+    # async def get_specified_notes(self):
+    #     """
+    #     get specified notes info
+    #     :return:
+    #     """
+    #     semaphore = asyncio.Semaphore(config.MAX_CONCURRENCY_NUM)
+        
+    #     import json
+
+    #     with open('./data/weibo/json/creator_contents_2025-05-10.json', 'r', encoding='utf-8') as f:
+    #         weibolist = json.load(f)
+
+    #     WEIBO_SPECIFIED_ID_LIST = []
+
+    #     for weibostring in weibolist:
+    #         WEIBO_SPECIFIED_ID_LIST.append(weibostring['note_id'])
+
+        
+    #     task_list = []
+        
+    #     # read error uid from local file
+    #     if os.path.exists('./data/weibo/json/creator_contents_error.txt'):
+    #         with open('./data/weibo/json/creator_contents_error.txt', 'r', encoding='utf-8') as f:
+    #             error_start_id = f.readline().strip()
+    #         start_index = WEIBO_SPECIFIED_ID_LIST.index(error_start_id) if error_start_id in WEIBO_SPECIFIED_ID_LIST else 0
+    #     else:
+    #         start_index = 0
+        
+    #     for note_id in WEIBO_SPECIFIED_ID_LIST[start_index:]:
+    #         result = await self.get_note_info_task(note_id=note_id, semaphore=semaphore)
+    #         if result is None:
+    #             # save error uid to local file
+    #             with open('./data/weibo/json/creator_contents_error.txt', 'w', encoding='utf-8') as f:
+    #                 f.write(note_id + '\n')
+    #             break
+    #         else:
+    #             task_list.append(result)
+    #     if task_list:
+    #         video_details = await asyncio.gather(*task_list)
+    #         for note_item in video_details:
+    #             if note_item:
+    #                 await weibo_store.update_weibo_note(note_item)
+    #                 await self.get_note_images(note_item.get("mblog"))
+    #         await self.batch_get_notes_comments(config.WEIBO_SPECIFIED_ID_LIST)
+
     async def get_specified_notes(self):
         """
-        get specified notes info
-        :return:
+        获取指定微博 note 列表详情
+        一旦某条 note 获取失败（返回 None），立刻中断流程
         """
         semaphore = asyncio.Semaphore(config.MAX_CONCURRENCY_NUM)
-        task_list = [
-            self.get_note_info_task(note_id=note_id, semaphore=semaphore) for note_id in
-            config.WEIBO_SPECIFIED_ID_LIST
-        ]
-        video_details = await asyncio.gather(*task_list)
-        for note_item in video_details:
-            if note_item:
-                await weibo_store.update_weibo_note(note_item)
+        video_details = []
+        error_path = Path('./data/weibo/json/creator_contents_error.txt')
+        error_path.parent.mkdir(parents=True, exist_ok=True)
+        if os.path.exists('./data/weibo/json/creator_contents_error.txt'):
+            with open('./data/weibo/json/creator_contents_error.txt', 'r', encoding='utf-8') as f:
+                error_start_id = f.readline().strip()
+            start_index = config.WEIBO_SPECIFIED_ID_LIST.index(error_start_id) if error_start_id in config.WEIBO_SPECIFIED_ID_LIST else 0
+        else:
+            start_index = 0
+        for note_id in config.WEIBO_SPECIFIED_ID_LIST[start_index:]:
+            result = await self.get_note_info_task(note_id=note_id, semaphore=semaphore)
+
+            if result is None:
+                utils.logger.error(f"[get_specified_notes] 获取 note 失败，终止流程：{note_id}")
+                with open('./data/weibo/json/creator_contents_error.txt', 'w', encoding='utf-8') as f:
+                    f.write(note_id + '\n')
+                break  # ❗️中断执行
+            else:
+                await weibo_store.update_weibo_note(result)
+                try:
+                    await self.get_note_images(result.get("mblog"))
+                except Exception as e:
+                    utils.logger.error(f"[get_specified_notes] 获取 note 图片失败，终止流程：{note_id}，错误信息：{e}")
+                    with open('./data/weibo/json/creator_contents_error.txt', 'w', encoding='utf-8') as f:
+                        f.write(note_id + '\n')
+                    break
+                video_details.append(result)
+
+        # 如果你希望失败时也不要跳过拉评论部分，可以保留这行
         await self.batch_get_notes_comments(config.WEIBO_SPECIFIED_ID_LIST)
+
+
 
     async def get_note_info_task(self, note_id: str, semaphore: asyncio.Semaphore) -> Optional[Dict]:
         """
@@ -166,9 +235,10 @@ class WeiboCrawler(AbstractCrawler):
         async with semaphore:
             try:
                 result = await self.wb_client.get_note_info_by_id(note_id)
+                utils.logger.info(f"[WeiboCrawler.get_note_info_task] Get note detail success, note_id: {note_id}")
                 return result
             except DataFetchError as ex:
-                utils.logger.error(f"[WeiboCrawler.get_note_info_task] Get note detail error: {ex}")
+                utils.logger.error(f"[WeiboCrawler.get_note_info_task] Get note detail error: {ex}，note_id: {note_id}")
                 return None
             except KeyError as ex:
                 utils.logger.error(

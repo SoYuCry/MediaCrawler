@@ -31,6 +31,10 @@ from tools import utils
 from .exception import DataFetchError
 from .field import SearchType
 
+import re
+import json
+from html import unescape
+from bs4 import BeautifulSoup
 
 class WeiboClient:
     def __init__(
@@ -224,7 +228,7 @@ class WeiboClient:
                 "GET", url, timeout=self.timeout, headers=self.headers
             )
             if response.status_code != 200:
-                raise DataFetchError(f"get weibo detail err: {response.text}")
+                raise DataFetchError(f"get weibo detail err: {response.text}, status code: {response.status_code}")
             match = re.search(r'var \$render_data = (\[.*?\])\[0\]', response.text, re.DOTALL)
             if match:
                 render_data_json = match.group(1)
@@ -237,6 +241,40 @@ class WeiboClient:
             else:
                 utils.logger.info(f"[WeiboClient.get_note_info_by_id] 未找到$render_data的值")
                 return dict()
+
+            
+
+            # # 精确提取微博正文 JSON 字符串
+            # match = re.search(r'"text"\s*:\s*"((?:\\.|[^"\\])*)"', response.text)
+            # if match:
+            #     raw_html_text = match.group(1)
+
+            #     # 正确解码：先反转义，再 unescape HTML
+            #     decoded_html = json.loads(f'"{raw_html_text}"')  # 🔥 正确处理所有 \u 和转义字符
+            #     decoded_html = unescape(decoded_html)            # HTML 符号，如 &gt;
+
+            #     soup = BeautifulSoup(decoded_html, 'html.parser')
+            #     plain_text = soup.get_text(separator="\n")
+                
+            #     dict_temp = {
+            #         "mblog": {
+            #             "id": note_id,
+            #             "text": plain_text,
+            #             "created_at": response.headers.get("Date"),
+            #             "attitudes_count": 0,
+            #             "comments_count": 0,
+            #             "reposts_count": 0,
+            #         }
+            #     }
+
+            #     note_item = {
+            #             "mblog": dict_temp
+            #         }
+            #     return note_item
+            
+            # else:
+            #     utils.logger.info(f"[WeiboClient.get_note_info_by_id] 未找到$render_data的值")
+            #     return dict()
 
     async def get_note_image(self, image_url: str) -> bytes:
         image_url = image_url[8:]  # 去掉 https://

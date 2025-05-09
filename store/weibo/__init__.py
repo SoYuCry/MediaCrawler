@@ -83,6 +83,7 @@ async def update_weibo_note(note_item: Dict):
         "last_modify_ts": utils.get_current_timestamp(),
         "note_url": f"https://m.weibo.cn/detail/{note_id}",
         "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
+        'pic_list': mblog.get("pic_ids", []),
 
         # 用户信息
         "user_id": str(user_info.get("id")),

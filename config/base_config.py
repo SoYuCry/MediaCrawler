@@ -10,7 +10,7 @@
 
 
 # 基础配置
-PLATFORM = "xhs"
+PLATFORM = "wb"
 KEYWORDS = "编程副业,编程兼职"  # 关键词搜索配置，以英文逗号分隔
 LOGIN_TYPE = "qrcode"  # qrcode or phone or cookie
 COOKIES = ""
@@ -19,7 +19,7 @@ SORT_TYPE = "popularity_descending"
 # 具体值参见media_platform.xxx.field下的枚举值，暂时只支持抖音
 PUBLISH_TIME_TYPE = 0
 CRAWLER_TYPE = (
-    "search"  # 爬取类型，search(关键词搜索) | detail(帖子详情)| creator(创作者主页数据)
+    "creator"  # 爬取类型，search(关键词搜索) | detail(帖子详情)| creator(创作者主页数据)
 )
 # 自定义User Agent（暂时仅对XHS有效）
 UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0'
@@ -61,10 +61,10 @@ CRAWLER_MAX_NOTES_COUNT = 200
 MAX_CONCURRENCY_NUM = 1
 
 # 是否开启爬图片模式, 默认不开启爬图片
-ENABLE_GET_IMAGES = False
+ENABLE_GET_IMAGES = True
 
 # 是否开启爬评论模式, 默认开启爬评论
-ENABLE_GET_COMMENTS = True
+ENABLE_GET_COMMENTS = False
 
 # 爬取一级评论的数量控制(单视频/帖子)
 CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES = 10
@@ -106,13 +106,21 @@ BILI_SPECIFIED_ID_LIST = [
 
 # 指定微博平台需要爬取的帖子列表
 WEIBO_SPECIFIED_ID_LIST = [
-    "4982041758140155",
-    # ........................
+    # add after CREATOR
 ]
 
 # 指定weibo创作者ID列表
 WEIBO_CREATOR_ID_LIST = [
-    "5533390220",
+    # 套利猫猫创作者 id 测试
+    # "7561665121",
+    # 守中而善渊 id
+    # "2955880657",
+    # 阿马#1
+    # "7753875948",
+    # 阿马#2
+    # "7714896950",
+    # CryptoV
+    "6720040834",
     # ........................
 ]
 
